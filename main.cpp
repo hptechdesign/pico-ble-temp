@@ -9,8 +9,7 @@
 #include "rgbled.hpp"
 #include "button.hpp"
 
-#include "serial.h"
-#include "sensor.h"
+
 #include "pico/stdlib.h"
 #include "stdio.h"
 
@@ -32,7 +31,6 @@ Button button_x(PicoDisplay2::X);
 Button button_y(PicoDisplay2::Y);
 
 static char printBuf[256];
-serial_modes_t mode = mode_stream_data;
 bool toggle_led = false;
 static uint8_t rVal=0;
 static   Point text_location(0, 0);
@@ -44,13 +42,10 @@ int main() {
 
   st7789.set_backlight(255);
 
-
-
   Pen BG = graphics.create_pen(0, 0, 0);
   Pen WHITE = graphics.create_pen(255, 255, 255);
 
   printf("\nBegin main loop");
-  serial_init();
   led.set_brightness(64);
 
   while(true) {
@@ -64,8 +59,6 @@ int main() {
     graphics.clear();
 
     graphics.set_pen(WHITE);
-    sensor_generateData();
-    serial_sendSensorPacket();
     print_sensorData();
     toggle_rVal();
     led.set_rgb(0, rVal, 0);
@@ -81,64 +74,13 @@ int main() {
 void print_sensorData(void)
 {
     text_location.x += 30;
-    graphics.text("--- Pico-ecu-sensormcu ---",text_location, 320, 2);
+    graphics.text("--- Wax Melt Monitor ---",text_location, 320, 2);
     text_location.x -= 30;
     
     text_location.y += rowHeight*2;
-    snprintf(printBuf, 256, "Crank_rpm");
+    snprintf(printBuf, 256, "Temperature");
     graphics.text(printBuf, text_location, 320);
-    snprintf(printBuf, 256, ": %6d",sensor_getCrankRpm());
-    text_location.x += valOffset;
-    graphics.text(printBuf, text_location, 320);
-    text_location.x -= valOffset;
-
-    text_location.y += rowHeight;
-    snprintf(printBuf, 256, "Manifold_pressure_mbar");
-    graphics.text(printBuf, text_location, 320);
-    snprintf(printBuf, 256, ": %6d",sensor_getManifoldPressure());
-    text_location.x += valOffset;
-    graphics.text(printBuf, text_location, 320);
-    text_location.x -= valOffset;
-
-    text_location.y += rowHeight;
-    snprintf(printBuf, 256, "Temperature_a_degC");
-    graphics.text(printBuf, text_location, 320);
-    snprintf(printBuf, 256, ": %6d",sensor_getTemperatureA());
-    text_location.x += valOffset;
-    graphics.text(printBuf, text_location, 320);
-    text_location.x -= valOffset;
-
-    text_location.y += rowHeight;
-    snprintf(printBuf, 256, "Temperature_b_degC");
-    graphics.text(printBuf, text_location, 320);
-    snprintf(printBuf, 256, ": %6d",sensor_getTemperatureB());
-    text_location.x += valOffset;
-    graphics.text(printBuf, text_location, 320);
-    text_location.x -= valOffset;
-
-    text_location.y += rowHeight;
-    snprintf(printBuf, 256, "Oil_pressure_mbar");
-    graphics.text(printBuf, text_location, 320);
-    snprintf(printBuf, 256, ": %6d",sensor_getOilPressure());
-    text_location.x += valOffset;
-    graphics.text(printBuf, text_location, 320);
-    text_location.x -= valOffset;
-
-    text_location.y += rowHeight;
-    snprintf(printBuf, 256, "Fuel_pressure_bar");
-    graphics.text(printBuf, text_location, 320);
-    snprintf(printBuf, 256, ": %6d",sensor_getFuelPressure());
-    text_location.x += valOffset;
-    graphics.text(printBuf, text_location, 320);
-    text_location.x -= valOffset;
-
-    text_location.y += rowHeight*2;
-    graphics.text("----------------------------------------", text_location, 320);
-    text_location.y += rowHeight;
-    snprintf(printBuf, 256, "Packet Number %8d",ser_payloadsSent);
-    graphics.text(printBuf, text_location, 320);
-
-    text_location.y -= rowHeight*10;
+    text_location.y -= rowHeight*2;
 }
 
 void toggle_rVal(void)

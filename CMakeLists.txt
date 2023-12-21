@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 
 # Change your executable name to something creative!
-set(NAME pico-ecu-sensormcu) # <-- Name your project/executable here!
+set(NAME pico-ble-temp) # <-- Name your project/executable here!
 
 include(pimoroni_pico_import.cmake)
 include(pico_sdk_import.cmake)
@@ -17,8 +17,6 @@ pico_sdk_init()
 # Add your source files
 add_executable(${NAME}
     main.cpp
-    serial.cpp
-    sensor.cpp
     crc.cpp
 )
 
