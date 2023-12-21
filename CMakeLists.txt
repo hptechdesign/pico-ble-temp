@@ -31,6 +31,8 @@ include(drivers/rgbled/rgbled)
 include(drivers/button/button)
 include(libraries/pico_display_2/pico_display_2)
 
+add_subdirectory(modules/pico-onewire)
+
 # Pull in pico libraries that we need
 target_link_libraries(${NAME}   pico_stdlib
                                 hardware_spi
@@ -40,7 +42,8 @@ target_link_libraries(${NAME}   pico_stdlib
                                 button
                                 pico_display_2
                                 st7789
-                                pico_graphics)
+                                pico_graphics
+                                pico_one_wire)
 
 # Set up files for the release packages
 install(FILES
