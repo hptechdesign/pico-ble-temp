@@ -13,6 +13,8 @@
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 #include "modules/pico-onewire/api/one_wire.h"
+#include "font8_data.hpp"
+#include "font14_outline_data.hpp"
 
 using namespace pimoroni;
 
@@ -23,6 +25,7 @@ ST7789 st7789(320, 240, ROTATE_0, false, get_spi_pins(BG_SPI_FRONT));
 PicoGraphics_PenRGB332 graphics(st7789.width, st7789.height, nullptr);
 
 RGBLED led(PicoDisplay2::LED_R, PicoDisplay2::LED_G, PicoDisplay2::LED_B);
+
 void toggle_rVal(void);
 
 Button button_a(PicoDisplay2::A);
@@ -35,6 +38,9 @@ bool toggle_led = false;
 static uint8_t rVal = 0;
 static Point text_location(0, 0);
 
+static float setPoint{50};
+static float currentTemp{0};
+
 int main()
 {
 
@@ -46,7 +52,7 @@ int main()
 
   st7789.set_backlight(255);
 
-  Pen BG = graphics.create_pen(0, 0, 0);
+  Pen BG = graphics.create_pen(200, 0, 0);
   Pen WHITE = graphics.create_pen(255, 255, 255);
 
   printf("\nBegin main loop");
@@ -56,34 +62,58 @@ int main()
   {
 
     if (button_a.raw())
-      text_location.x -= 1;
+    {
+      if (setPoint >= 5.0)
+      {
+        setPoint -= 5.0;
+      }
+    }
+
     if (button_b.raw())
-      text_location.x += 1;
+    {
+      if (setPoint >= 1.0)
+      {
+        setPoint -= 1.0;
+      }
+    }
 
     if (button_x.raw())
-      text_location.y -= 1;
+    {
+      if (setPoint <= 100.0)
+      {
+        setPoint += 5.0;
+      }
+    }
+
     if (button_y.raw())
-      text_location.y += 1;
+    {
+      if (setPoint <= 100.0)
+      {
+        setPoint += 5.0;
+      }
+    }
 
     graphics.set_pen(BG);
     graphics.clear();
 
     graphics.set_pen(WHITE);
 
-    text_location.x += 30;
+    text_location.x += 48;
+    graphics.set_font(&font8);
     graphics.text("--- Wax Melt Monitor ---", text_location, 320, 2);
-    text_location.x -= 30;
+    text_location.x -= 48;
 
     one_wire.single_device_read_rom(address);
     one_wire.convert_temperature(address, true, false);
+    currentTemp = one_wire.temperature(address);
 
-    text_location.y += rowHeight * 2;
-    snprintf(printBuf, 256, "Device Address: %02x%02x%02x%02x%02x%02x%02x%02x\n", address.rom[0], address.rom[1], address.rom[2], address.rom[3], address.rom[4], address.rom[5], address.rom[6], address.rom[7]);
+    graphics.set_font(&font14_outline);
+    text_location.y += rowHeight * 5;
+    text_location.x += 135;
+    snprintf(printBuf, 256, "%3.1f C", currentTemp);
     graphics.text(printBuf, text_location, 320);
-    text_location.y += rowHeight * 2;
-    snprintf(printBuf, 256, "Temperature: %3.1foC\n", one_wire.temperature(address));
-    graphics.text(printBuf, text_location, 320);
-    text_location.y -= rowHeight * 4;
+    text_location.x -= 135;
+    text_location.y -= rowHeight * 5;
 
     toggle_rVal();
     led.set_rgb(0, rVal, 0);
