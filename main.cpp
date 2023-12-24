@@ -41,6 +41,11 @@ static Point text_location(0, 0);
 static float setPoint{50};
 static float currentTemperature{0};
 
+bool button_a_pressed = false;
+bool button_b_pressed = false;
+bool button_x_pressed = false;
+bool button_y_pressed = false;
+
 typedef struct
 {
   int red;
@@ -52,7 +57,19 @@ static bool ready = true;
 
 int main()
 {
-  // Define RGB values for a gradient from blue to green/yellow to red
+
+  stdio_init_all();
+  One_wire one_wire(2); // GP2
+  one_wire.init();
+  rom_address_t address{};
+  static repeating_timer_t timer;
+
+  st7789.set_backlight(255);
+
+  printf("\nBegin main loop");
+  led.set_brightness(64);
+
+  // Define RGB values for a gradient from blue to dark violet
   RGB_t gradient[] = {
       {0, 0, 255},    // Blue
       {30, 144, 255}, // Dodger Blue
@@ -66,30 +83,56 @@ int main()
       {148, 0, 211}   // Dark Violet
   };
 
-  stdio_init_all();
-  One_wire one_wire(2); // GP2
-  one_wire.init();
-  rom_address_t address{};
-  static repeating_timer_t timer;
+  // Calculate the number of shades between Blue and Dark Violet
+  const int numShades = 100;
 
-  st7789.set_backlight(255);
+  // Create an array to store the gradient colors
+  RGB_t gradientShades[numShades];
 
-  Pen WHITE = graphics.create_pen(255, 255, 255);
+  // Calculate intermediate colors
+  for (int i = 0; i < numShades; ++i)
+  {
+    double ratio = static_cast<double>(i) / (numShades - 1);
+    int index1 = static_cast<int>(std::floor(ratio * 9));
+    int index2 = std::min(index1 + 1, 9);
 
-  printf("\nBegin main loop");
-  led.set_brightness(64);
+    double weight2 = ratio * 9 - index1;
+    double weight1 = 1 - weight2;
+
+    gradientShades[i].red = static_cast<int>(gradient[index1].red * weight1 + gradient[index2].red * weight2);
+    gradientShades[i].green = static_cast<int>(gradient[index1].green * weight1 + gradient[index2].green * weight2);
+    gradientShades[i].blue = static_cast<int>(gradient[index1].blue * weight1 + gradient[index2].blue * weight2);
+  }
 
   while (true)
   {
+    // Get the current temperature
     one_wire.single_device_read_rom(address);
     one_wire.convert_temperature(address, false, false);
     currentTemperature = one_wire.temperature(address);
+
     // Calculate the index in the gradient array based on the temperature
-    int index = ((int)round(currentTemperature) * 9) / 100;
+    int index = static_cast<int>((currentTemperature * (numShades - 1)) / 100.0);
+
+    // Clip index to the valid range
+    index = std::max(0, std::min(index, numShades - 1));
+
     // Create a pen with the RGB values from the selected index
-    Pen BG = graphics.create_pen(gradient[index].red, gradient[index].green, gradient[index].blue);
+    Pen BG = graphics.create_pen(gradientShades[index].red, gradientShades[index].green, gradientShades[index].blue);
+
     // Set the background colour
     graphics.set_pen(BG);
+
+    // Set the pen colour
+    // Choose a text color that contrasts well with the background
+    // You can use a simple formula based on the brightness of the background color
+    int brightness = (gradientShades[index].red + gradientShades[index].green + gradientShades[index].blue) / 3;
+    int textRed = (brightness > 128) ? 0 : 255;
+    int textGreen = (brightness > 128) ? 0 : 255;
+    int textBlue = (brightness > 128) ? 0 : 255;
+
+    Pen TEXT_COLOUR = graphics.create_pen(textRed, textGreen, textBlue);
+    // Clear the graphics
     graphics.clear();
 
     // Check if the currentTemperature is within 2 degrees of setPoint
@@ -106,39 +149,60 @@ int main()
       led.set_rgb(0, 0, 0);
     }
 
-    if (button_a.raw())
+    // Check for button presses
+    if (button_a.raw() && !button_a_pressed)
     {
+      button_a_pressed = true;
       if (setPoint >= 5.0)
       {
         setPoint -= 5.0;
       }
     }
-
-    if (button_b.raw())
+    else if (!button_a.raw())
     {
+      button_a_pressed = false;
+    }
+
+    if (button_b.raw() && !button_b_pressed)
+    {
+      button_b_pressed = true;
       if (setPoint >= 1.0)
       {
         setPoint -= 1.0;
       }
     }
-
-    if (button_x.raw())
+    else if (!button_b.raw())
     {
+      button_b_pressed = false;
+    }
+
+    if (button_x.raw() && !button_x_pressed)
+    {
+      button_x_pressed = true;
       if (setPoint <= 100.0)
       {
         setPoint += 5.0;
       }
     }
-
-    if (button_y.raw())
+    else if (!button_x.raw())
     {
+      button_x_pressed = false;
+    }
+
+    if (button_y.raw() && !button_y_pressed)
+    {
+      button_y_pressed = true;
       if (setPoint <= 100.0)
       {
         setPoint += 1.0;
       }
     }
+    else if (!button_y.raw())
+    {
+      button_y_pressed = false;
+    }
 
-    graphics.set_pen(WHITE);
+    graphics.set_pen(TEXT_COLOUR);
 
     text_location.x += 48;
     graphics.set_font(&font8);
