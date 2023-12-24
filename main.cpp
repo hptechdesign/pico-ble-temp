@@ -7,7 +7,7 @@
 #include "drivers/st7789/st7789.hpp"
 #include "libraries/pico_graphics/pico_graphics.hpp"
 #include "hardware/watchdog.h"
-
+#include "hardware/flash.h"
 #include "rgbled.hpp"
 #include "button.hpp"
 
@@ -54,6 +54,38 @@ typedef struct
   int green;
   int blue;
 } RGB_t;
+
+float load_setpoint()
+{
+  uint32_t setpoint_data;
+  flash_range_read(FLASH_SYS_DATA_START, &setpoint_data, sizeof(setpoint_data));
+
+  // Extract the float value from the loaded data
+  float loaded_setpoint = *((float *)&setpoint_data);
+
+  // Range check - ensure the loaded setpoint is within the range 0 to 100
+  if (loaded_setpoint < 0.0 || loaded_setpoint > 100.0)
+  {
+    // Set a default value of 50 if the loaded setpoint is out of range
+    loaded_setpoint = 50.0;
+  }
+
+  return loaded_setpoint;
+}
+
+void save_setpoint(float setpoint)
+{
+  // Range check - ensure the setpoint is within the range 0 to 100
+  if (setpoint < 0.0 || setpoint > 100.0)
+  {
+    // Set a default value of 50 if the setpoint is out of range
+    setpoint = 50.0;
+  }
+
+  uint32_t setpoint_data = *((uint32_t *)&setpoint);
+  flash_range_erase(FLASH_SYS_DATA_START, sizeof(setpoint_data));
+  flash_range_program(FLASH_SYS_DATA_START, &setpoint_data, sizeof(setpoint_data));
+}
 
 static bool ready = true;
 
@@ -107,6 +139,9 @@ int main()
     gradientShades[i].green = static_cast<int>(gradient[index1].green * weight1 + gradient[index2].green * weight2);
     gradientShades[i].blue = static_cast<int>(gradient[index1].blue * weight1 + gradient[index2].blue * weight2);
   }
+
+  // Load the setpoint from non-volatile memory
+  setPoint = load_setpoint();
 
   while (true)
   {
@@ -163,6 +198,8 @@ int main()
       if (setPoint >= 5.0)
       {
         setPoint -= 5.0;
+        // Save the updated setpoint to non-volatile memory
+        save_setpoint(setPoint);
       }
     }
     else if (!button_a.raw())
@@ -176,6 +213,8 @@ int main()
       if (setPoint >= 1.0)
       {
         setPoint -= 1.0;
+        // Save the updated setpoint to non-volatile memory
+        save_setpoint(setPoint);
       }
     }
     else if (!button_b.raw())
@@ -189,6 +228,8 @@ int main()
       if (setPoint <= 100.0)
       {
         setPoint += 5.0;
+        // Save the updated setpoint to non-volatile memory
+        save_setpoint(setPoint);
       }
     }
     else if (!button_x.raw())
@@ -202,6 +243,8 @@ int main()
       if (setPoint <= 100.0)
       {
         setPoint += 1.0;
+        // Save the updated setpoint to non-volatile memory
+        save_setpoint(setPoint);
       }
     }
     else if (!button_y.raw())
