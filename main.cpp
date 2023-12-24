@@ -2,26 +2,30 @@
 #include <math.h>
 #include <vector>
 #include <cstdlib>
-
+#include "pico/stdlib.h"
 #include "libraries/pico_display_2/pico_display_2.hpp"
 #include "drivers/st7789/st7789.hpp"
 #include "libraries/pico_graphics/pico_graphics.hpp"
 #include "hardware/watchdog.h"
-#include "hardware/flash.h"
+
 #include "rgbled.hpp"
 #include "button.hpp"
 
 #include "stdio.h"
-#include "pico/stdlib.h"
+
 #include "hardware/gpio.h"
 #include "modules/pico-onewire/api/one_wire.h"
 #include "font8_data.hpp"
 #include "font14_outline_data.hpp"
 
+#include "hardware/flash.h"
+
 using namespace pimoroni;
 
 #define rowHeight 20
 #define valOffset 250
+#define FLASH_SYS_DATA_START 0x100000
+#define FLASH_SETPOINT_LOC 0x0
 
 ST7789 st7789(320, 240, ROTATE_0, false, get_spi_pins(BG_SPI_FRONT));
 PicoGraphics_PenRGB332 graphics(st7789.width, st7789.height, nullptr);
@@ -55,10 +59,29 @@ typedef struct
   int blue;
 } RGB_t;
 
+void flash_range_read(uint32_t flash_offset, void *dest, size_t size)
+{
+  // Ensure the destination pointer is valid
+  if (dest == NULL)
+  {
+    // Handle error: Invalid destination pointer
+    return;
+  }
+
+  // Calculate the actual flash address
+  uint32_t flash_address = FLASH_SYS_DATA_START + flash_offset;
+
+  // Perform memory copy from flash to destination
+  for (size_t i = 0; i < size; ++i)
+  {
+    ((uint8_t *)dest)[i] = ((uint8_t *)flash_address)[i];
+  }
+}
+
 float load_setpoint()
 {
   uint32_t setpoint_data;
-  flash_range_read(FLASH_SYS_DATA_START, &setpoint_data, sizeof(setpoint_data));
+  flash_range_read(FLASH_SETPOINT_LOC, &setpoint_data, sizeof(setpoint_data));
 
   // Extract the float value from the loaded data
   float loaded_setpoint = *((float *)&setpoint_data);
@@ -83,16 +106,18 @@ void save_setpoint(float setpoint)
   }
 
   uint32_t setpoint_data = *((uint32_t *)&setpoint);
-  flash_range_erase(FLASH_SYS_DATA_START, sizeof(setpoint_data));
-  flash_range_program(FLASH_SYS_DATA_START, &setpoint_data, sizeof(setpoint_data));
+  flash_range_erase(FLASH_SETPOINT_LOC, sizeof(setpoint_data));
+  flash_range_program(FLASH_SETPOINT_LOC, reinterpret_cast<const uint8_t *>(&setpoint_data), sizeof(setpoint_data));
 }
 
 static bool ready = true;
 
 int main()
 {
+  // Pet the watchdog by resetting it
+  // watchdog_update();
   // Initialize the watchdog timer with a timeout of 2 seconds
-  watchdog_enable(2.0);
+  // watchdog_enable(10.0, true);
 
   stdio_init_all();
   One_wire one_wire(2); // GP2
@@ -146,7 +171,7 @@ int main()
   while (true)
   {
     // Pet the watchdog by resetting it
-    watchdog_update();
+    // watchdog_update();
 
     // Get the current temperature
     one_wire.single_device_read_rom(address);

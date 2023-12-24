@@ -43,7 +43,8 @@ target_link_libraries(${NAME}   pico_stdlib
                                 pico_display_2
                                 st7789
                                 pico_graphics
-                                pico_one_wire)
+                                pico_one_wire
+                                pico_stdlib)
 
 # Set up files for the release packages
 install(FILES
