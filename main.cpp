@@ -6,6 +6,8 @@
 #include "libraries/pico_display_2/pico_display_2.hpp"
 #include "drivers/st7789/st7789.hpp"
 #include "libraries/pico_graphics/pico_graphics.hpp"
+#include "hardware/watchdog.h"
+
 #include "rgbled.hpp"
 #include "button.hpp"
 
@@ -57,6 +59,8 @@ static bool ready = true;
 
 int main()
 {
+  // Initialize the watchdog timer with a timeout of 2 seconds
+  watchdog_enable(2.0);
 
   stdio_init_all();
   One_wire one_wire(2); // GP2
@@ -106,6 +110,9 @@ int main()
 
   while (true)
   {
+    // Pet the watchdog by resetting it
+    watchdog_update();
+
     // Get the current temperature
     one_wire.single_device_read_rom(address);
     one_wire.convert_temperature(address, false, false);
